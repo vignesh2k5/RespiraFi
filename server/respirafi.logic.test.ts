@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { nutrition, plan, recovery, score } from "./routers";
+import { elapsedSeconds, idleTelemetry, nutrition, plan, recovery, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
+  it("starts from safe idle telemetry", () => {
+    expect(idleTelemetry).toMatchObject({ bpm: 70, speed: 0, movement: 0, duration: 0, status: "NORMAL" });
+    expect(score(idleTelemetry).status).toBe("NORMAL");
+  });
+
   it("weights signals into normal, moderate, and high bands", () => {
     expect(score({ bpm: 60, speed: 0, movement: 0 }).status).toBe("NORMAL");
     expect(score({ bpm: 130, speed: 7, movement: 1.2 }).status).toBe("MODERATE");
@@ -11,6 +16,18 @@ describe("RespiraFi intensity engine", () => {
     const result = score({ bpm: 240, speed: 40, movement: 10 });
     expect(result.intensity).toBe(100);
     expect(result.status).toBe("HIGH");
+  });
+});
+
+describe("RespiraFi workout clock", () => {
+  it("excludes accumulated paused seconds from elapsed duration", () => {
+    const now = Date.parse("2026-09-25T10:00:20.000Z");
+    expect(elapsedSeconds({ workoutStartedAt: "2026-09-25T10:00:00.000Z", pausedSeconds: 5, workoutState: "ACTIVE" }, now)).toBe(15);
+  });
+
+  it("freezes at pausedAt while a workout is paused", () => {
+    const now = Date.parse("2026-09-25T10:00:40.000Z");
+    expect(elapsedSeconds({ workoutStartedAt: "2026-09-25T10:00:00.000Z", pausedAt: "2026-09-25T10:00:12.000Z", pausedSeconds: 2, workoutState: "PAUSED" }, now)).toBe(10);
   });
 });
 

@@ -1,36 +1,12 @@
 import { double, int, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"), email: varchar("email", { length: 320 }), loginMethod: varchar("loginMethod", { length: 64 }),
-  role: varchar("role", { length: 16 }).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(), updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(), lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
-
-export const profiles = mysqlTable("profiles", {
-  id: int("id").autoincrement().primaryKey(), name: varchar("name", { length: 120 }).notNull(), age: int("age").notNull(), height: int("height").notNull(), weight: int("weight").notNull(), gender: varchar("gender", { length: 80 }).notNull(), fitnessLevel: varchar("fitnessLevel", { length: 40 }).notNull(), activityLevel: varchar("activityLevel", { length: 40 }).notNull(), goal: varchar("goal", { length: 80 }).notNull(), dietaryPreference: varchar("dietaryPreference", { length: 100 }).notNull(), workoutPreference: varchar("workoutPreference", { length: 100 }).notNull(), availableTime: int("availableTime").notNull(), updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-
-export const telemetry = mysqlTable("telemetry", {
-  id: int("id").autoincrement().primaryKey(), deviceId: varchar("deviceId", { length: 80 }).notNull(), recordedAt: timestamp("recordedAt").defaultNow().notNull(), bpm: int("bpm").notNull(), speed: double("speed").notNull(), movement: double("movement").notNull(), duration: int("duration").notNull(), intensity: int("intensity").notNull(), status: varchar("status", { length: 20 }).notNull(),
-});
-
-export const alerts = mysqlTable("alerts", {
-  id: int("id").autoincrement().primaryKey(), createdAt: timestamp("createdAt").defaultNow().notNull(), deviceId: varchar("deviceId", { length: 80 }).notNull(), bpm: int("bpm").notNull(), speed: double("speed").notNull(), movement: double("movement").notNull(), duration: int("duration").notNull(), intensity: int("intensity").notNull(), status: varchar("status", { length: 20 }).notNull(), message: text("message").notNull(),
-});
-
-export const workouts = mysqlTable("workouts", {
-  id: int("id").autoincrement().primaryKey(), startedAt: timestamp("startedAt").notNull(), endedAt: timestamp("endedAt").notNull(), duration: int("duration").notNull(), averageBpm: int("averageBpm").notNull(), peakBpm: int("peakBpm").notNull(), averageSpeed: double("averageSpeed").notNull(), averageMovement: double("averageMovement").notNull(), averageIntensity: int("averageIntensity").notNull(), peakIntensity: int("peakIntensity").notNull(), alertCount: int("alertCount").notNull(), status: varchar("status", { length: 20 }).notNull(),
-});
-
-export const conversations = mysqlTable("conversations", {
-  id: int("id").autoincrement().primaryKey(), role: varchar("role", { length: 20 }).notNull(), content: text("content").notNull(), createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
-
-export const simulator = mysqlTable("simulator", {
-  id: int("id").primaryKey(), deviceId: varchar("deviceId", { length: 80 }).notNull(), connected: int("connected").notNull(), running: int("running").notNull(), mode: varchar("mode", { length: 30 }).notNull(), intensityTarget: int("intensityTarget").notNull(), duration: int("duration").notNull(), workoutState: varchar("workoutState", { length: 30 }).notNull(), workoutStartedAt: varchar("workoutStartedAt", { length: 40 }).notNull(), led: int("led").notNull(), buzzer: int("buzzer").notNull(), lastTelemetryId: int("lastTelemetryId"),
-});
+export const users = mysqlTable("users", { id: int("id").autoincrement().primaryKey(), openId: varchar("openId", { length: 64 }).notNull().unique(), name: text("name"), email: varchar("email", { length: 320 }), loginMethod: varchar("loginMethod", { length: 64 }), role: varchar("role", { length: 16 }).default("user").notNull(), createdAt: timestamp("createdAt").defaultNow().notNull(), updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(), lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull() });
+export const profiles = mysqlTable("profiles", { id: int("id").autoincrement().primaryKey(), name: varchar("name", { length: 120 }).notNull(), age: int("age").notNull(), height: int("height").notNull(), weight: int("weight").notNull(), gender: varchar("gender", { length: 80 }).notNull(), fitnessLevel: varchar("fitnessLevel", { length: 40 }).notNull(), activityLevel: varchar("activityLevel", { length: 40 }).notNull(), goal: varchar("goal", { length: 80 }).notNull(), dietaryPreference: varchar("dietaryPreference", { length: 100 }).notNull(), workoutPreference: varchar("workoutPreference", { length: 100 }).notNull(), availableTime: int("availableTime").notNull(), updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull() });
+export const telemetry = mysqlTable("telemetry", { id: int("id").autoincrement().primaryKey(), deviceId: varchar("deviceId", { length: 80 }).notNull(), recordedAt: timestamp("recordedAt").defaultNow().notNull(), bpm: int("bpm").notNull(), speed: double("speed").notNull(), movement: double("movement").notNull(), duration: int("duration").notNull(), intensity: int("intensity").notNull(), status: varchar("status", { length: 20 }).notNull() });
+export const alerts = mysqlTable("alerts", { id: int("id").autoincrement().primaryKey(), createdAt: timestamp("createdAt").defaultNow().notNull(), deviceId: varchar("deviceId", { length: 80 }).notNull(), bpm: int("bpm").notNull(), speed: double("speed").notNull(), movement: double("movement").notNull(), duration: int("duration").notNull(), intensity: int("intensity").notNull(), status: varchar("status", { length: 20 }).notNull(), message: text("message").notNull() });
+export const workouts = mysqlTable("workouts", { id: int("id").autoincrement().primaryKey(), startedAt: timestamp("startedAt").notNull(), endedAt: timestamp("endedAt").notNull(), duration: int("duration").notNull(), averageBpm: int("averageBpm").notNull(), peakBpm: int("peakBpm").notNull(), averageSpeed: double("averageSpeed").notNull(), averageMovement: double("averageMovement").notNull(), averageIntensity: int("averageIntensity").notNull(), peakIntensity: int("peakIntensity").notNull(), alertCount: int("alertCount").notNull(), status: varchar("status", { length: 20 }).notNull() });
+export const conversations = mysqlTable("conversations", { id: int("id").autoincrement().primaryKey(), role: varchar("role", { length: 20 }).notNull(), content: text("content").notNull(), createdAt: timestamp("createdAt").defaultNow().notNull() });
+export const simulator = mysqlTable("simulator", { id: int("id").primaryKey(), deviceId: varchar("deviceId", { length: 80 }).notNull(), connected: int("connected").notNull(), running: int("running").notNull(), mode: varchar("mode", { length: 30 }).notNull(), intensityTarget: int("intensityTarget").notNull(), duration: int("duration").notNull(), workoutState: varchar("workoutState", { length: 30 }).notNull(), workoutStartedAt: varchar("workoutStartedAt", { length: 40 }).notNull(), pausedAt: varchar("pausedAt", { length: 40 }).notNull().default(""), pausedSeconds: int("pausedSeconds").notNull().default(0), led: int("led").notNull(), buzzer: int("buzzer").notNull(), lastTelemetryId: int("lastTelemetryId") });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
