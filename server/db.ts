@@ -1,92 +1,13 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { profiles, simulator, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
-
-// Lazily create the drizzle instance so local tooling can run without a DB.
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
-  }
-  return _db;
-}
-
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
-
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
-}
-
-export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
-}
-
-// TODO: add feature queries here as your schema grows.
+export async function getDb() { if (!_db && process.env.DATABASE_URL) { try { _db = drizzle(process.env.DATABASE_URL); } catch (error) { console.warn("[Database] Failed to connect:", error); } } return _db; }
+export async function upsertUser(user: typeof users.$inferInsert): Promise<void> { if (!user.openId) throw new Error("User openId is required"); const db=await getDb(); if(!db) return; const values={...user,lastSignedIn:user.lastSignedIn||new Date()}; await db.insert(users).values(values).onDuplicateKeyUpdate({set:{name:user.name,email:user.email,loginMethod:user.loginMethod,lastSignedIn:values.lastSignedIn}}); }
+export async function getUserByOpenId(openId: string) { const db=await getDb(); if(!db) return undefined; const result=await db.select().from(users).where(eq(users.openId,openId)).limit(1); return result[0]; }
+export const defaultProfile={name:"Alex Morgan",age:29,height:175,weight:72,gender:"Prefer not to say",fitnessLevel:"Intermediate",activityLevel:"Moderate",goal:"General Fitness",dietaryPreference:"Balanced",workoutPreference:"Cardio + Strength",availableTime:30};
+export const defaultSimulator={id:1,deviceId:"RESPIRAFI-ESP32-001",connected:0,running:0,mode:"REST",intensityTarget:32,duration:0,workoutState:"REST",workoutStartedAt:"",led:0,buzzer:0,lastTelemetryId:null};
+export async function ensureCoreRows(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) { const p=await db.select().from(profiles).limit(1); if(!p.length) await db.insert(profiles).values(defaultProfile); const s=await db.select().from(simulator).where(eq(simulator.id,1)).limit(1); if(!s.length) await db.insert(simulator).values(defaultSimulator); }
+export { ENV };
