@@ -32,6 +32,17 @@ describe("RespiraFi workout clock", () => {
 });
 
 describe("RespiraFi coaching personalization", () => {
+  it("regenerates materially different plans for current goals", () => {
+    const history = { alerts: 0, highSessions: 0 };
+    const endurance = plan({ goal: "Endurance", availableTime: 30, workoutPreference: "Cardio" }, history);
+    const muscle = plan({ goal: "Muscle Building", availableTime: 30, workoutPreference: "Strength" }, history);
+    const general = plan({ goal: "General Fitness", availableTime: 30, workoutPreference: "Balanced" }, history);
+    expect(endurance.objective).toContain("cardiovascular endurance");
+    expect(muscle.objective).toContain("resistance training");
+    expect(general.objective).toContain("balanced conditioning");
+    expect(new Set([endurance.mainWorkout, muscle.mainWorkout, general.mainWorkout]).size).toBe(3);
+  });
+
   it("changes the workout plan for muscle building and conservative history", () => {
     const muscle = plan({ goal: "Muscle Building", availableTime: 35, workoutPreference: "Strength" }, { alerts: 0, highSessions: 0 });
     const cautious = plan({ goal: "General Fitness", availableTime: 30, workoutPreference: "Cardio" }, { alerts: 2, highSessions: 2 });
