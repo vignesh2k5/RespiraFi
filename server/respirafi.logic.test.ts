@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { elapsedSeconds, idleTelemetry, nutrition, plan, recovery, score } from "./routers";
+import { buildCoachContext, decide, elapsedSeconds, idleTelemetry, nutrition, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
   it("starts from safe idle telemetry", () => {
@@ -59,5 +59,45 @@ describe("RespiraFi coaching personalization", () => {
     const guidance = recovery({ alerts: 3, highSessions: 1 }, "NORMAL");
     expect(guidance.title).toBe("Recovery-first reset");
     expect(guidance.rest).toContain("24–48");
+  });
+});
+
+describe("RespiraFi AI decision layer", () => {
+  const profile = { name: "Test Athlete", age: 30, height: 175, weight: 72, gender: "Prefer not to say", fitnessLevel: "Intermediate", activityLevel: "Moderate", goal: "Endurance", dietaryPreference: "Balanced", workoutPreference: "Cardio", availableTime: 30 };
+  const sim = { workoutState: "ACTIVE", duration: 2100, mode: "ACTIVE" };
+
+  it("uses multiple live signals to escalate fatigue and recommend recovery", () => {
+    const ml = predictMl({ bpm: 165, previousBpm: 150, speed: 11, movement: 2.5, duration: 2100, recentHighSessions: 2, recentAlerts: 2 });
+    expect(ml.predictedClass).toBe("HIGH");
+    expect(ml.bpmTrend).toBe("RISING");
+    expect(ml.fatigue).toBe("HIGH");
+    const context = buildCoachContext({ profile, telemetry: { bpm: 165, speed: 11, movement: 2.5, duration: 2100 }, simulator: sim, workouts: [{ endedAt: new Date(), duration: 1800, averageIntensity: 72, peakIntensity: 86 }], alerts: [{ createdAt: new Date() }, { createdAt: new Date() }], conversations: [], previousTelemetry: { bpm: 150 } });
+    const decision = decide(context);
+    expect(decision.warningLevel).toBe("HIGH");
+    expect(decision.workoutRecommendation).toContain("reduce intensity");
+    expect(decision.suggestedActions.length).toBeGreaterThan(1);
+  });
+
+  it("supports low fatigue normal continuation and measured progression", () => {
+    const context = buildCoachContext({ profile, telemetry: { bpm: 95, speed: 3, movement: .4, duration: 300 }, simulator: { workoutState: "ACTIVE", duration: 300, mode: "WARMUP" }, workouts: [], alerts: [], conversations: [], previousTelemetry: { bpm: 94 } });
+    const decision = decide(context);
+    expect(context.mlPrediction.fatigue).toBe("LOW");
+    expect(decision.warningLevel).toBe("LOW");
+    expect(decision.workoutRecommendation).toContain("continue");
+  });
+
+  it("renders natural status, progress, nutrition, and follow-up explanations from context", () => {
+    const context = buildCoachContext({ profile, telemetry: { bpm: 148, speed: 8, movement: 1.5, duration: 1200 }, simulator: { workoutState: "ACTIVE", duration: 1200, mode: "ACTIVE" }, workouts: [{ endedAt: new Date(), duration: 1200, averageIntensity: 55, peakIntensity: 68 }], alerts: [], conversations: [{ role: "assistant", content: "Keep the effort controlled." }], previousTelemetry: { bpm: 140 } });
+    const decision = decide(context);
+    expect(renderCoachResponse("status", context, decision, "")).toContain("BPM trend");
+    expect(renderCoachResponse("progress", context, decision, "")).toContain("stored session");
+    expect(renderCoachResponse("nutrition", context, decision, "")).toContain("Endurance");
+    expect(renderCoachResponse("why", context, decision, "why?")).toContain("Because");
+  });
+
+  it("states when progress history is unavailable instead of inventing statistics", () => {
+    const context = buildCoachContext({ profile, telemetry: { bpm: 70, speed: 0, movement: 0, duration: 0 }, simulator: { workoutState: "REST", duration: 0, mode: "REST" }, workouts: [], alerts: [], conversations: [] });
+    const decision = decide(context);
+    expect(renderCoachResponse("progress", context, decision, "progress")).toContain("not enough stored workout history");
   });
 });
