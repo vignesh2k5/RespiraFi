@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCoachContext, decide, elapsedSeconds, idleTelemetry, nutrition, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
+import { buildCoachContext, classifyIntent, decide, elapsedSeconds, idleTelemetry, meaningfulInsight, nutrition, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
   it("starts from safe idle telemetry", () => {
@@ -99,5 +99,35 @@ describe("RespiraFi AI decision layer", () => {
     const context = buildCoachContext({ profile, telemetry: { bpm: 70, speed: 0, movement: 0, duration: 0 }, simulator: { workoutState: "REST", duration: 0, mode: "REST" }, workouts: [], alerts: [], conversations: [] });
     const decision = decide(context);
     expect(renderCoachResponse("progress", context, decision, "progress")).toContain("not enough stored workout history");
+  });
+
+  it("handles missing profile and sensor fields with transparent defaults", () => {
+    const context = buildCoachContext({ profile: {}, telemetry: {}, simulator: {}, workouts: [], alerts: [], conversations: [] });
+    const decision = decide(context);
+    expect(context.fitnessGoal).toBe("General Fitness");
+    expect(context.mlPrediction.confidence).toBeGreaterThan(0);
+    expect(renderCoachResponse("nutrition", context, decision, "eat")).toContain("General Fitness");
+  });
+
+  it("exposes an explicit safe result when the model service is unavailable", () => {
+    const prediction = predictMl({ bpm: 148, speed: 8, movement: 1, duration: 900, modelAvailable: false });
+    expect(prediction.modelVersion).toBe("unavailable");
+    expect(prediction.confidence).toBe(0);
+    expect(prediction.predictedClass).toBe("NORMAL");
+  });
+
+  it("understands conversational exercise follow-ups and keeps trend insights event-based", () => {
+    expect(classifyIntent("chat", "Can I do deadlifts too?")).toBe("plan");
+    expect(classifyIntent("chat", "Why should I reduce intensity?")).toBe("why");
+    const insight = meaningfulInsight({ status: "MODERATE", fatigue: "MEDIUM", bpmTrend: "FLAT" }, { status: "HIGH" }, { intensityRecommendation: "Reduce pace now", fatigueState: "HIGH", currentBpmTrend: "RISING", workoutRecommendation: "reduce intensity, recover, and reassess before continuing", reasons: ["BPM is trending upward"] });
+    expect(insight).toContain("moved from moderate to high");
+  });
+
+  it("makes medium-fatigue and long-session decisions more conservative", () => {
+    const context = buildCoachContext({ profile, telemetry: { bpm: 145, speed: 7, movement: 1.2, duration: 1800 }, simulator: sim, workouts: [], alerts: [], conversations: [], previousTelemetry: { bpm: 140 } });
+    const decision = decide(context);
+    expect(context.mlPrediction.fatigue).toBe("MEDIUM");
+    expect(decision.reasons).toContain("the session is already longer than 30 minutes");
+    expect(decision.workoutRecommendation).toContain("avoid adding intensity");
   });
 });

@@ -7,7 +7,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { buildCoachContext, classifyIntent, decide, nutrition, plan, predictMl, recovery, renderCoachResponse, score } from "./coachServices";
+import { buildCoachContext, classifyIntent, decide, meaningfulInsight, nutrition, plan, predictMl, recovery, renderCoachResponse, score } from "./coachServices";
 
 const telemetryInput=z.object({deviceId:z.string().min(1).max(80),bpm:z.number().min(30).max(240),speed:z.number().min(0).max(40),movement:z.number().min(0).max(10),duration:z.number().min(0).max(86400),exercise:z.string().max(100).optional()});
 const profileInput=z.object({name:z.string().min(1),age:z.number().int().min(13).max(100),height:z.number().int().min(100).max(240),weight:z.number().int().min(30).max(300),gender:z.string().min(1),fitnessLevel:z.string().min(1),activityLevel:z.string().min(1),goal:z.string().min(1),dietaryPreference:z.string().min(1),workoutPreference:z.string().min(1),availableTime:z.number().int().min(5).max(300)});
@@ -31,4 +31,4 @@ export const appRouter=router({system:systemRouter,auth:router({me:publicProcedu
  coach:router({get:publicProcedure.query(async()=>{const db=await getDb();if(!db)throw new Error("Database unavailable");const answer=await coachAnswer(db,"status","");return {recommendation:answer,context:answer.coachContext,decision:answer.decision};}),history:publicProcedure.query(async()=>{const db=await getDb();if(!db)throw new Error("Database unavailable");return db.select().from(conversations).orderBy(desc(conversations.createdAt)).limit(40);}),ask:publicProcedure.input(z.object({kind:z.string().default("chat"),message:z.string().default(""),exercise:z.string().max(100).optional()})).mutation(async({input})=>{const db=await getDb();if(!db)throw new Error("Database unavailable");const answer=await coachAnswer(db,input.kind,input.message);await addConversation(db,input.message||input.kind,answer);return answer;})}),
 });
 export type AppRouter=typeof appRouter;
-export { score, predictMl, buildCoachContext, decide, renderCoachResponse, elapsedSeconds, idleTelemetry, plan, recovery, nutrition };
+export { score, predictMl, buildCoachContext, classifyIntent, decide, meaningfulInsight, renderCoachResponse, elapsedSeconds, idleTelemetry, plan, recovery, nutrition };
