@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCoachContext, classifyIntent, decide, elapsedSeconds, idleTelemetry, meaningfulInsight, nutrition, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
+import { buildCoachContext, classifyIntent, decide, elapsedSeconds, idleTelemetry, meaningfulInsight, nutrition, pauseGuard, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
   it("starts from safe idle telemetry", () => {
@@ -28,6 +28,12 @@ describe("RespiraFi workout clock", () => {
   it("freezes at pausedAt while a workout is paused", () => {
     const now = Date.parse("2026-09-25T10:00:40.000Z");
     expect(elapsedSeconds({ workoutStartedAt: "2026-09-25T10:00:00.000Z", pausedAt: "2026-09-25T10:00:12.000Z", pausedSeconds: 2, workoutState: "PAUSED" }, now)).toBe(10);
+  });
+
+  it("treats a stale pause request after reset or stop as an idle no-op", () => {
+    expect(pauseGuard({ running: 0, workoutState: "REST" })).toEqual({ status: "ALREADY_IDLE", workoutState: "REST", duration: 0 });
+    expect(pauseGuard({ running: 0, workoutState: "COMPLETED" })?.status).toBe("ALREADY_IDLE");
+    expect(pauseGuard({ running: 1, workoutState: "ACTIVE" })).toBeNull();
   });
 });
 
