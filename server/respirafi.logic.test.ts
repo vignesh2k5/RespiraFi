@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCoachContext, classifyIntent, decide, elapsedSeconds, idleTelemetry, meaningfulInsight, nutrition, pauseGuard, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
+import { buildCoachContext, classifyIntent, decide, elapsedSeconds, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
   it("starts from safe idle telemetry", () => {
@@ -135,5 +135,33 @@ describe("RespiraFi AI decision layer", () => {
     expect(context.mlPrediction.fatigue).toBe("MEDIUM");
     expect(decision.reasons).toContain("the session is already longer than 30 minutes");
     expect(decision.workoutRecommendation).toContain("avoid adding intensity");
+  });
+});
+
+describe("RespiraFi onboarding", () => {
+  it("models new, resumable, and completed states without exposing a generic profile", () => {
+    expect(onboardingStateFor(1)).toBe("NEW_USER");
+    expect(onboardingStateFor(3)).toBe("ONBOARDING_IN_PROGRESS");
+    expect(onboardingStateFor(6, true)).toBe("ONBOARDING_COMPLETED");
+  });
+
+  it("validates required completion fields on the server boundary", () => {
+    expect(onboardingCompletionRequirements({ name: "Welcome to RespiraFi", age: 12, height: 80, weight: 10, goal: "Unknown", fitnessLevel: "Unknown" })).toEqual(["name", "age", "height", "weight", "goal", "fitnessLevel"]);
+    expect(onboardingCompletionRequirements({ name: "Alex Morgan", age: 30, height: 175, weight: 72, goal: "Endurance", fitnessLevel: "Intermediate" })).toEqual([]);
+  });
+
+  it("uses onboarding equipment and frequency in the first workout plan", () => {
+    const planForDumbbells=plan({ goal: "Muscle Building", availableTime: 30, workoutPreference: "Strength", availableEquipment: "Dumbbells", trainingFrequency: "3–4 days/week" }, { alerts: 0, highSessions: 0 });
+    expect(planForDumbbells.mainWorkout).toContain("Dumbbells");
+    expect(planForDumbbells.safety).toContain("3–4 days/week");
+  });
+
+  it("generates a first Coach response from actual onboarding preferences without inventing history", () => {
+    const context=buildCoachContext({ profile: { name: "Alex Morgan", goal: "Muscle Building", fitnessLevel: "Beginner", trainingFrequency: "2–3 days/week", availableEquipment: "Dumbbells", onboardingCompleted: 1, availableTime: 30 }, telemetry: { bpm: 70, speed: 0, movement: 0, duration: 0 }, simulator: { workoutState: "REST", duration: 0, mode: "REST" }, workouts: [], alerts: [], conversations: [] });
+    const text=renderCoachResponse("status", context, decide(context), "");
+    expect(text).toContain("Alex Morgan");
+    expect(text).toContain("muscle building");
+    expect(text).toContain("Dumbbells");
+    expect(renderCoachResponse("progress", context, decide(context), "")).toContain("not enough stored workout history");
   });
 });
