@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, ChevronRight, CircleHelp, Dumbbell, HeartPulse, Save, ShieldCheck, Sparkles, Target, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -10,14 +10,13 @@ const equipment=["None","Dumbbells","Barbell","Machines","Full Gym","Other"];
 const durations=["15–30 min","30–45 min","45–60 min","60+ min"];
 const frequencies=["2–3 days/week","3–4 days/week","4–5 days/week","5+ days/week"];
 const focuses=["Workout planning","Progress tracking","Nutrition guidance","Recovery","Motivation","All of these"];
-const initial=(p:any)=>({name:p?.name&&p.name!=="Welcome to RespiraFi"?p.name:"",age:p?.onboardingCompleted?p.age:"",height:p?.onboardingCompleted?p.height:"",weight:p?.onboardingCompleted?p.weight:"",gender:p?.gender&&p.gender!=="Prefer not to say"?p.gender:"Prefer not to say",fitnessLevel:p?.fitnessLevel||"",goal:p?.goal&&p.goal!=="General Fitness"?p.goal:"",secondaryGoals:p?.secondaryGoals||"",trainingFrequency:p?.trainingFrequency||"",preferredWorkoutDuration:p?.preferredWorkoutDuration||"",trainingEnvironment:p?.trainingEnvironment||"",availableEquipment:p?.availableEquipment||"",coachFocus:p?.coachFocus||"All of these",dietaryPreference:p?.dietaryPreference||"",workoutPreference:p?.workoutPreference||"",exercisePreferences:p?.exercisePreferences||"",exerciseAvoid:"",activityLevel:p?.activityLevel||"Moderate",availableTime:p?.availableTime||30});
+const initial=(p:any)=>{const started=p?.onboardingState==="ONBOARDING_IN_PROGRESS"||Number(p?.onboardingStep)>1||Boolean(p?.onboardingCompleted);return {name:started&&p?.name!=="Welcome to RespiraFi"?p.name:"",age:started?p?.age||"":"",height:started?p?.height||"":"",weight:started?p?.weight||"":"",gender:started?p?.gender||"Prefer not to say":"Prefer not to say",fitnessLevel:started?p?.fitnessLevel||"":"",goal:started&&p?.goal!=="General Fitness"?p.goal:"",secondaryGoals:started?p?.secondaryGoals||"":"",trainingFrequency:started?p?.trainingFrequency||"":"",preferredWorkoutDuration:started?p?.preferredWorkoutDuration||"":"",trainingEnvironment:started?p?.trainingEnvironment||"":"",availableEquipment:started?p?.availableEquipment||"":"",coachFocus:started?p?.coachFocus||"All of these":"All of these",dietaryPreference:started?p?.dietaryPreference||"":"",workoutPreference:started?p?.workoutPreference||"":"",exercisePreferences:started?p?.exercisePreferences||"":"",exerciseAvoid:"",activityLevel:started?p?.activityLevel||"Moderate":"Moderate",availableTime:started?p?.availableTime||30:30};};
 
 function OptionGrid({items,value,onChange,multi=false}:{items:string[];value:string;onChange:(value:string)=>void;multi?:boolean}){return <div className="onboarding-options">{items.map(item=><button type="button" key={item} className={`onboarding-option ${value.split(", ").includes(item)?"selected":""}`} onClick={()=>onChange(multi?(value.split(", ").filter(Boolean).includes(item)?value.split(", ").filter(x=>x!==item).join(", "):[...value.split(", ").filter(Boolean),item].join(", ")):item)}><span>{item}</span>{value.split(", ").includes(item)&&<Check size={16}/>}</button>)}</div>}
 
 export default function Onboarding({profile,onComplete}:{profile:any;onComplete:()=>void}){
   const [form,setForm]=useState<any>(()=>initial(profile));
   const [step,setStep]=useState<number>(()=>Math.min(6,Math.max(1,Number(profile?.onboardingStep)||1)));
-  useEffect(()=>{if(profile){setForm(initial(profile));setStep(Math.min(6,Math.max(1,Number(profile.onboardingStep)||1)));}},[profile]);
   const save=trpc.profile.saveOnboardingStep.useMutation({onSuccess:()=>toast.success("Progress saved") ,onError:e=>toast.error(e.message)});
   const complete=trpc.profile.completeOnboarding.useMutation({onSuccess:()=>{toast.success("Your profile is ready");onComplete()},onError:e=>toast.error(e.message)});
   const set=(key:string,value:any)=>setForm((current:any)=>({...current,[key]:value}));

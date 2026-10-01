@@ -21,7 +21,7 @@ export default function Home(){
   const auth=useAuth();
   const [page,setPage]=useState<Page>("dashboard");
   const [mobileOpen,setMobileOpen]=useState(false);
-  const dash=trpc.dashboard.useQuery(undefined,{enabled:auth.isAuthenticated,refetchInterval:3000});
+  const dash=trpc.dashboard.useQuery(undefined,{enabled:auth.isAuthenticated,refetchInterval:(query:any)=>{const data=query.state.data as any;return data?.profile&&!data.profile.onboardingCompleted?false:3000}});
   const telemetry=trpc.telemetry.list.useQuery(undefined,{enabled:auth.isAuthenticated,refetchInterval:3000});
   const workoutList=trpc.workouts.list.useQuery(undefined,{enabled:auth.isAuthenticated});
   const coachData=trpc.coach.get.useQuery(undefined,{enabled:auth.isAuthenticated});
