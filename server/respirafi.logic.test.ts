@@ -60,6 +60,9 @@ describe("RespiraFi coaching personalization", () => {
     const guidance = nutrition({ weight: 75, goal: "Muscle Building", activityLevel: "Moderate", dietaryPreference: "Vegetarian" });
     expect(guidance.protein).toContain("120 g");
     expect(guidance.protein).toContain("vegetarian");
+    expect(guidance.dailyPlan).toHaveLength(5);
+    expect(guidance.estimate.calories).toBeGreaterThan(0);
+    expect(guidance.note).toContain("estimates");
   });
   it("becomes recovery-first after repeated alerts", () => {
     const guidance = recovery({ alerts: 3, highSessions: 1 }, "NORMAL");
