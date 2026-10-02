@@ -7,7 +7,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { buildCoachContext, classifyIntent, decide, meaningfulInsight, nutrition, plan, predictMl, recovery, renderCoachResponse, score } from "./coachServices";
+import { buildCoachContext, classifyIntent, decide, extractConversationPreferences, meaningfulInsight, nutrition, plan, predictMl, recovery, renderCoachResponse, score } from "./coachServices";
 
 const telemetryInput = z.object({ deviceId: z.string().min(1).max(80), bpm: z.number().min(30).max(240), speed: z.number().min(0).max(40), movement: z.number().min(0).max(10), duration: z.number().min(0).max(86400), exercise: z.string().max(100).optional() });
 const goals = ["Muscle Building", "Strength", "Fat Loss", "Endurance", "General Fitness", "Weight Maintenance"] as const;
@@ -35,9 +35,21 @@ async function snapshot(db: any, userId: number) {
   const last = state === "REST" ? idleTelemetry : (ts[0] || { ...idleTelemetry, status: "NORMAL" });
   return { profile: p || { ...defaultProfile, userId }, simulator: sim || { ...defaultSimulator, userId }, isWorkoutActive: Boolean(sim?.running && isActiveState(state)), isSimulatorRunning: Boolean(sim?.running), telemetry: last, telemetryHistory: state === "REST" || state === "COMPLETED" ? [] : ts.slice().reverse(), workouts: ws, alerts: as, stats: stats(ws, as), previousTelemetry: ts[1] || null };
 }
-function normalizeIntent(kind: string, message: string) { const aliases: Record<string, string> = { todayWorkout: "plan", explainStatus: "status", explainData: "status", whatToEat: "nutrition", howRecover: "recovery", improveRoutine: "routine", lastWorkout: "progress", whatNow: "status" }; return aliases[kind] || classifyIntent(kind, message); }
+function normalizeIntent(kind: string, message: string) { const aliases: Record<string, string> = { todayWorkout: "plan", explainStatus: "status", canTrainToday: "status", recoveryCheck: "recovery", explainData: "status", whatToEat: "nutrition", buildDiet: "nutrition", anotherOption: "nutrition", howRecover: "recovery", improveRoutine: "routine", lastWorkout: "progress", whatNow: "status" }; return aliases[kind] || classifyIntent(kind, message); }
 async function coachAnswer(db: any, userId: number, kind: string, message: string) { const c = await snapshot(db, userId); const memory = await db.select().from(conversations).where(eq(conversations.userId, userId)).orderBy(desc(conversations.createdAt)).limit(20); const context = buildCoachContext({ ...c, conversations: memory, previousTelemetry: c.previousTelemetry }); const decision = decide(context); const intent = normalizeIntent(kind, message); const text = renderCoachResponse(intent, context, decision, message); return { text, type: intent, provider: "LocalCoachProvider", fallback: true, contextUsed: { profile: true, telemetry: true, history: true, mlPrediction: true, alerts: true, conversationMemory: memory.length > 0, preferences: true }, coachContext: context, decision, snapshot: c }; }
-async function addConversation(db: any, userId: number, userText: string, answer: any) { await db.insert(conversations).values([{ userId, role: "user", content: userText }, { userId, role: "assistant", content: answer.text }]); const old = await db.select({ id: conversations.id }).from(conversations).where(eq(conversations.userId, userId)).orderBy(desc(conversations.id)).limit(100); if (old.length > 40) await db.delete(conversations).where(and(eq(conversations.userId, userId), inArray(conversations.id, old.slice(40).map((x: { id: number }) => x.id)))); }
+async function addConversation(db: any, userId: number, userText: string, answer: any) {
+  await db.insert(conversations).values([{ userId, role: "user", content: userText }, { userId, role: "assistant", content: answer.text }]);
+  const old = await db.select({ id: conversations.id }).from(conversations).where(eq(conversations.userId, userId)).orderBy(desc(conversations.id)).limit(100);
+  if (old.length > 40) await db.delete(conversations).where(and(eq(conversations.userId, userId), inArray(conversations.id, old.slice(40).map((x: { id: number }) => x.id))));
+  const learned = extractConversationPreferences([{ role: "user", content: userText }]);
+  if (learned.dislikes.length || learned.southIndian || learned.cheaper || learned.onlyDumbbells || learned.shorterWorkouts) {
+    const [profile] = await db.select({ exercisePreferences: profiles.exercisePreferences }).from(profiles).where(eq(profiles.userId, userId)).limit(1);
+    const notes = [...learned.dislikes.map(x => `Avoid ${x}`), learned.southIndian ? "Prefer South Indian food" : "", learned.cheaper ? "Prefer budget-friendly options" : "", learned.onlyDumbbells ? "Only dumbbells available" : "", learned.shorterWorkouts ? "Prefer shorter workouts" : ""].filter(Boolean);
+    const existing = String(profile?.exercisePreferences || "");
+    const additions = notes.filter(note => !existing.toLowerCase().includes(note.toLowerCase()));
+    if (additions.length) await db.update(profiles).set({ exercisePreferences: [existing, ...additions].filter(Boolean).join("; ") }).where(eq(profiles.userId, userId));
+  }
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -74,4 +86,4 @@ export const appRouter = router({
 });
 
 export type AppRouter = typeof appRouter;
-export { score, predictMl, buildCoachContext, classifyIntent, decide, meaningfulInsight, renderCoachResponse, elapsedSeconds, idleTelemetry, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, recovery, nutrition };
+export { score, predictMl, buildCoachContext, classifyIntent, extractConversationPreferences, decide, meaningfulInsight, renderCoachResponse, elapsedSeconds, idleTelemetry, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, recovery, nutrition };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCoachContext, classifyIntent, decide, elapsedSeconds, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
+import { buildCoachContext, classifyIntent, decide, elapsedSeconds, extractConversationPreferences, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
   it("starts from safe idle telemetry", () => {
@@ -63,6 +63,24 @@ describe("RespiraFi coaching personalization", () => {
     expect(guidance.dailyPlan).toHaveLength(5);
     expect(guidance.estimate.calories).toBeGreaterThan(0);
     expect(guidance.note).toContain("estimates");
+  });
+  it("creates a meaningfully different alternative diet plan", () => {
+    const profile = { age: 30, height: 175, weight: 75, gender: "Prefer not to say", goal: "Muscle Building", activityLevel: "Moderate", dietaryPreference: "Balanced" };
+    const context = buildCoachContext({ profile, telemetry: {}, simulator: {}, workouts: [], alerts: [], conversations: [{ role: "assistant", content: "Breakfast: oats with yogurt. Estimated 400 kcal." }] });
+    const first = renderCoachResponse("nutrition", context, decide(context), "Give me a diet plan");
+    const alternative = renderCoachResponse("nutrition", context, decide(context), "Any other diet plan?");
+    expect(alternative).toContain("different diet plan");
+    expect(alternative).not.toBe(first);
+    expect(alternative).toContain("omelette");
+  });
+  it("remembers food dislikes and South Indian preference from conversation", () => {
+    const preferences = extractConversationPreferences([{ role: "user", content: "I don't like oats. Make it South Indian." }]);
+    expect(preferences.dislikes).toContain("oats");
+    expect(preferences.southIndian).toBe(true);
+    const context = buildCoachContext({ profile: { goal: "General Fitness", weight: 70, dietaryPreference: "Balanced" }, telemetry: {}, simulator: {}, workouts: [], alerts: [], conversations: [{ role: "user", content: "I don't like oats. Make it South Indian." }] });
+    const response = renderCoachResponse("nutrition", context, decide(context), "Give me another one");
+    expect(response).toContain("idli");
+    expect(response.toLowerCase()).not.toContain("oats");
   });
   it("becomes recovery-first after repeated alerts", () => {
     const guidance = recovery({ alerts: 3, highSessions: 1 }, "NORMAL");
@@ -130,6 +148,14 @@ describe("RespiraFi AI decision layer", () => {
     expect(classifyIntent("chat", "Why should I reduce intensity?")).toBe("why");
     const insight = meaningfulInsight({ status: "MODERATE", fatigue: "MEDIUM", bpmTrend: "FLAT" }, { status: "HIGH" }, { intensityRecommendation: "Reduce pace now", fatigueState: "HIGH", currentBpmTrend: "RISING", workoutRecommendation: "reduce intensity, recover, and reassess before continuing", reasons: ["BPM is trending upward"] });
     expect(insight).toContain("moved from moderate to high");
+  });
+  it("recognizes alternative and workout modification intent", () => {
+    expect(classifyIntent("chat", "Any other diet plan?")).toBe("nutrition");
+    expect(classifyIntent("chat", "Make it shorter")).toBe("plan");
+    expect(classifyIntent("chat", "Replace squats")).toBe("plan");
+    const context = buildCoachContext({ profile: { goal: "Muscle Building", availableTime: 30, availableEquipment: "Dumbbells" }, telemetry: {}, simulator: {}, workouts: [], alerts: [], conversations: [{ role: "assistant", content: "Here is a squat workout." }] });
+    const modified = renderCoachResponse("plan", context, decide(context), "Replace squats");
+    expect(modified).toContain("step-ups");
   });
 
   it("makes medium-fatigue and long-session decisions more conservative", () => {
