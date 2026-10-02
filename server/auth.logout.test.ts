@@ -60,3 +60,25 @@ describe("auth.logout", () => {
     });
   });
 });
+
+describe("private data isolation", () => {
+  it("rejects anonymous dashboard access", async () => {
+    const caller = appRouter.createCaller({
+      user: null,
+      req: {} as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    });
+
+    await expect(caller.dashboard()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("rejects anonymous Coach history access", async () => {
+    const caller = appRouter.createCaller({
+      user: null,
+      req: {} as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    });
+
+    await expect(caller.coach.history()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+});
