@@ -177,6 +177,29 @@ describe("RespiraFi AI decision layer", () => {
     const modified = renderCoachResponse("plan", context, decide(context), "Replace squats");
     expect(modified).toContain("step-ups");
   });
+  it("resolves a tomorrow follow-up instead of blindly repeating the prior session", () => {
+    const context = buildCoachContext({ profile: { name: "Alex", goal: "General Fitness", availableTime: 30, availableEquipment: "Dumbbells" }, telemetry: {}, simulator: { workoutState: "REST" }, workouts: [], alerts: [], conversations: [{ role: "assistant", content: "TODAY'S SESSION: squats, push-ups, rows." }] });
+    const response = renderCoachResponse("plan", context, decide(context), "Okay for tomorrow?");
+    expect(response).toContain("TOMORROW’S SESSION");
+    expect(response).toContain("not automatically repeating");
+    expect(response).toContain("moving this session to tomorrow is reasonable");
+  });
+  it("formats workouts readably and modifies the requested exercise", () => {
+    const context = buildCoachContext({ profile: { goal: "Muscle Building", availableTime: 30, availableEquipment: "Dumbbells" }, telemetry: {}, simulator: { workoutState: "REST" }, workouts: [], alerts: [], conversations: [] });
+    const response = renderCoachResponse("plan", context, decide(context), "Replace the second exercise");
+    expect(response).toContain("TODAY’S SESSION");
+    expect(response).toContain("Warm-up");
+    expect(response).toContain("1. Main circuit");
+    expect(response).toContain("step-ups");
+    expect(response).toContain("Cooldown");
+  });
+  it("creates a lower-cost diet variant from a follow-up rather than repeating Plan A", () => {
+    const context = buildCoachContext({ profile: { goal: "Endurance", weight: 70, dietaryPreference: "Balanced" }, telemetry: {}, simulator: {}, workouts: [], alerts: [], conversations: [{ role: "assistant", content: "BREAKFAST: Greek yogurt and berries. LUNCH: salmon and quinoa." }] });
+    const response = renderCoachResponse("nutrition", context, decide(context), "Make it cheaper");
+    expect(response).toContain("different diet plan");
+    expect(response).toContain("eggs or beans");
+    expect(response).toContain("rice");
+  });
 
   it("makes medium-fatigue and long-session decisions more conservative", () => {
     const context = buildCoachContext({ profile, telemetry: { bpm: 145, speed: 7, movement: 1.2, duration: 1800 }, simulator: sim, workouts: [], alerts: [], conversations: [], previousTelemetry: { bpm: 140 } });
