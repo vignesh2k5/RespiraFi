@@ -149,6 +149,26 @@ describe("RespiraFi AI decision layer", () => {
     const insight = meaningfulInsight({ status: "MODERATE", fatigue: "MEDIUM", bpmTrend: "FLAT" }, { status: "HIGH" }, { intensityRecommendation: "Reduce pace now", fatigueState: "HIGH", currentBpmTrend: "RISING", workoutRecommendation: "reduce intensity, recover, and reassess before continuing", reasons: ["BPM is trending upward"] });
     expect(insight).toContain("moved from moderate to high");
   });
+  it("separates greetings from analytics and handles everything as multi-intent", () => {
+    const context = buildCoachContext({ profile: { name: "Alex", goal: "Endurance", availableTime: 30, weight: 72, dietaryPreference: "Balanced" }, telemetry: { bpm: 70 }, simulator: { workoutState: "REST" }, workouts: [], alerts: [], conversations: [] });
+    const decision = decide(context);
+    expect(classifyIntent("chat", "Hello")).toBe("greeting");
+    expect(classifyIntent("chat", "Everything please")).toBe("everything");
+    const greeting = renderCoachResponse("greeting", context, decision, "Hello");
+    expect(greeting).toContain("Want to work on today’s workout");
+    expect(greeting).not.toContain("BPM");
+    const everything = renderCoachResponse("everything", context, decision, "Everything please");
+    expect(everything).toContain("TODAY’S WORKOUT");
+    expect(everything).toContain("NUTRITION");
+    expect(everything).toContain("RECOVERY");
+    expect(everything).toContain("PROGRESS");
+    expect(everything).not.toBe(greeting);
+  });
+  it("resolves implied tomorrow and multi-topic requests", () => {
+    expect(classifyIntent("chat", "What about tomorrow?")).toBe("plan");
+    expect(classifyIntent("chat", "Workout and diet")).toBe("multi");
+    expect(classifyIntent("chat", "Tell me how I am doing and what I should do today")).toBe("multi");
+  });
   it("recognizes alternative and workout modification intent", () => {
     expect(classifyIntent("chat", "Any other diet plan?")).toBe("nutrition");
     expect(classifyIntent("chat", "Make it shorter")).toBe("plan");
