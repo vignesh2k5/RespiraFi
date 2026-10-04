@@ -200,6 +200,20 @@ describe("RespiraFi AI decision layer", () => {
     expect(response).toContain("eggs or beans");
     expect(response).toContain("rice");
   });
+  it("keeps tomorrow as first-class context across the required correction sequence", () => {
+    const base = { profile: { goal: "General Fitness", availableTime: 30, availableEquipment: "Dumbbells" }, telemetry: {}, simulator: { workoutState: "REST" }, workouts: [], alerts: [] };
+    const first = buildCoachContext({ ...base, conversations: [] });
+    const tomorrow = renderCoachResponse("plan", first, decide(first), "What should I train Tomorrow");
+    expect(tomorrow).toContain("TOMORROW’S SESSION");
+    expect(tomorrow).not.toContain("TODAY’S SESSION");
+    const memory = [{ role: "user", content: "What should I train Tomorrow" }, { role: "assistant", content: tomorrow }];
+    const follow = (message: string) => { const c = buildCoachContext({ ...base, conversations: memory }); return renderCoachResponse(classifyIntent("chat", message), c, decide(c), message); };
+    expect(follow("Why?")).toContain("tomorrow recommendation");
+    expect(follow("Make it shorter.")).toContain("TOMORROW’S SESSION");
+    expect(follow("Replace the second exercise.")).toContain("TOMORROW’S SESSION");
+    expect(follow("I asked for tomorrow.")).toContain("answer for tomorrow");
+    expect(follow("Can I do it in the morning?")).toContain("tomorrow workout in the morning");
+  });
 
   it("makes medium-fatigue and long-session decisions more conservative", () => {
     const context = buildCoachContext({ profile, telemetry: { bpm: 145, speed: 7, movement: 1.2, duration: 1800 }, simulator: sim, workouts: [], alerts: [], conversations: [], previousTelemetry: { bpm: 140 } });

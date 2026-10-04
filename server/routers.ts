@@ -37,8 +37,9 @@ async function snapshot(db: any, userId: number) {
 }
 function normalizeIntent(kind: string, message: string, context?: any) {
   const aliases: Record<string, string> = { todayWorkout: "plan", explainStatus: "status", canTrainToday: "status", recoveryCheck: "recovery", explainData: "status", whatToEat: "nutrition", buildDiet: "nutrition", anotherOption: "nutrition", howRecover: "recovery", improveRoutine: "routine", lastWorkout: "progress", whatNow: "status" };
-  if (aliases[kind]) return aliases[kind];
   const q = String(message || "").toLowerCase();
+  const temporalOverride = /\btomorrow\b|\bnext week\b|\bnext session\b|\bi asked for|that's not what i asked|that's not what i meant/.test(q);
+  if (aliases[kind] && !temporalOverride) return aliases[kind];
   const recent = (context?.conversationMemory || []).filter((x: any) => x.role === "assistant").slice(0, 3).map((x: any) => String(x.content).toLowerCase()).join(" ");
   const dietTopic = /breakfast|lunch|dinner|kcal|calories|protein|meal plan|diet/.test(recent);
   const workoutTopic = /today.s session|warm-up|cooldown|workout|squat|push-up|step-up|rounds/.test(recent);
