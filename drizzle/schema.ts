@@ -96,6 +96,24 @@ export const conversations = mysqlTable("conversations", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => ({ userCreatedAt: index("conversations_user_created_at_idx").on(table.userId, table.createdAt) }));
 
+export const weeklyPlans = mysqlTable("weeklyPlans", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  weekStartDate: timestamp("weekStartDate").notNull(),
+  targetDate: timestamp("targetDate").notNull(),
+  workoutType: varchar("workoutType", { length: 40 }).notNull(),
+  title: varchar("title", { length: 160 }).notNull(),
+  muscleGroups: text("muscleGroups").notNull(),
+  exercises: text("exercises").notNull(),
+  duration: int("duration").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("PLANNED"),
+  completionPercent: int("completionPercent"),
+  completedAt: timestamp("completedAt"),
+  reason: text("reason"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({ userTargetUnique: uniqueIndex("weekly_plans_user_target_unique").on(table.userId, table.targetDate), userWeekDate: index("weekly_plans_user_week_date_idx").on(table.userId, table.weekStartDate, table.targetDate) }));
+
 export const simulator = mysqlTable("simulator", {
   id: int("id").primaryKey(),
   userId: int("userId").notNull().references(() => users.id),
@@ -119,3 +137,4 @@ export type InsertUser = typeof users.$inferInsert;
 export type Profile = typeof profiles.$inferSelect;
 export type Telemetry = typeof telemetry.$inferSelect;
 export type Workout = typeof workouts.$inferSelect;
+export type WeeklyPlan = typeof weeklyPlans.$inferSelect;

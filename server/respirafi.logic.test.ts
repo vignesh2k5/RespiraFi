@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCoachContext, classifyIntent, decide, elapsedSeconds, extractConversationPreferences, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
+import { buildCoachContext, classifyIntent, decide, elapsedSeconds, extractConversationPreferences, generateWeeklyPlan, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
   it("starts from safe idle telemetry", () => {
@@ -221,6 +221,25 @@ describe("RespiraFi AI decision layer", () => {
     expect(context.mlPrediction.fatigue).toBe("MEDIUM");
     expect(decision.reasons).toContain("the session is already longer than 30 minutes");
     expect(decision.workoutRecommendation).toContain("avoid adding intensity");
+  });
+});
+
+describe("RespiraFi weekly adaptive planner", () => {
+  it("creates seven date-aware personalized rows with rest slots", () => {
+    const rows = generateWeeklyPlan({ goal: "Muscle Building", fitnessLevel: "Beginner", availableEquipment: "Dumbbells", availableTime: 25, trainingFrequency: "4 days" }, { mlPrediction: { fatigue: "LOW" }, trainingLoad: { recentHighSessions: 0 } }, new Date("2026-10-05T12:00:00Z"));
+    expect(rows).toHaveLength(7);
+    expect(rows.filter(x => x.status !== "REST")).toHaveLength(4);
+    expect(rows[0].weekStartDate.toDateString()).toBe(new Date("2026-10-05T00:00:00Z").toDateString());
+    expect(rows.some(x => x.title.includes("Upper Push"))).toBe(true);
+    expect(JSON.parse(rows[0].exercises)[0]).toHaveProperty("sets");
+  });
+  it("downgrades the first slot to recovery after repeated high load", () => {
+    const rows = generateWeeklyPlan({ goal: "Endurance", availableTime: 30, trainingFrequency: "3 days" }, { mlPrediction: { fatigue: "HIGH" }, trainingLoad: { recentHighSessions: 2 } });
+    expect(rows[0].status).toBe("REST");
+    expect(rows[0].reason).toMatch(/recovery/i);
+  });
+  it("recognizes a weekly-plan request as its own Coach intent", () => {
+    expect(classifyIntent("chat", "What should I train this week?")).toBe("weekly");
   });
 });
 
