@@ -61,6 +61,7 @@ export const defaultProfile = {
   availableEquipment: null,
   coachFocus: null,
   exercisePreferences: null,
+  timezone: "UTC",
 };
 
 export const defaultSimulator = {

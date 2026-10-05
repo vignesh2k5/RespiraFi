@@ -50,6 +50,13 @@
       "when": 1791119084779,
       "tag": "0006_new_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1791165768276,
+      "tag": "0007_optimal_radioactive_man",
+      "breakpoints": true
     }
   ]
 }

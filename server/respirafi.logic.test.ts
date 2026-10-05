@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCoachContext, classifyIntent, decide, elapsedSeconds, extractConversationPreferences, generateWeeklyPlan, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, score } from "./routers";
+import { buildCoachContext, classifyIntent, decide, elapsedSeconds, extractConversationPreferences, generateWeeklyPlan, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, resolveWeeklyPlanRow, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
   it("starts from safe idle telemetry", () => {
@@ -240,6 +240,16 @@ describe("RespiraFi weekly adaptive planner", () => {
   });
   it("recognizes a weekly-plan request as its own Coach intent", () => {
     expect(classifyIntent("chat", "What should I train this week?")).toBe("weekly");
+  });
+  it("resolves the actual target row instead of renaming today's workout", () => {
+    const rows = generateWeeklyPlan({ goal: "Muscle Building", availableEquipment: "Dumbbells", availableTime: 30, trainingFrequency: "3 days" }, {}, new Date("2026-10-05T12:00:00Z"));
+    expect(resolveWeeklyPlanRow("What should I train tomorrow?", [], rows, new Date("2026-10-05T12:00:00Z"))?.targetDate.toDateString()).toBe(new Date("2026-10-06T00:00:00Z").toDateString());
+    expect(resolveWeeklyPlanRow("What should I train Wednesday?", [], rows, new Date("2026-10-05T12:00:00Z"))?.status).toBe("REST");
+    expect(resolveWeeklyPlanRow("What about Friday?", [], rows, new Date("2026-10-05T12:00:00Z"))?.targetDate.toDateString()).toBe(new Date("2026-10-09T00:00:00Z").toDateString());
+    const context: any = { ...buildCoachContext({ profile: { goal: "Muscle Building", availableTime: 30, timezone: "UTC" }, telemetry: {}, simulator: { workoutState: "REST" }, workouts: [], alerts: [] }), weeklyPlanContext: { currentWeek: rows } };
+    const restReply = renderCoachResponse("plan", context, decide(context), "What should I train Wednesday?");
+    expect(restReply).toContain("Recovery / Rest");
+    expect(restReply).not.toContain("Main circuit");
   });
 });
 

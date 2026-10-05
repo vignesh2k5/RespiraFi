@@ -37,6 +37,7 @@ export const profiles = mysqlTable("profiles", {
   availableEquipment: varchar("availableEquipment", { length: 120 }),
   coachFocus: varchar("coachFocus", { length: 160 }),
   exercisePreferences: text("exercisePreferences"),
+  timezone: varchar("timezone", { length: 80 }),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({ userIdUnique: uniqueIndex("profiles_user_id_unique").on(table.userId) }));
 
