@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCoachContext, classifyIntent, decide, elapsedSeconds, extractConversationPreferences, generateWeeklyPlan, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, resolveWeeklyPlanRow, score } from "./routers";
+import { buildCoachContext, classifyIntent, decide, elapsedSeconds, extractConversationPreferences, generateWeeklyPlan, idleTelemetry, meaningfulInsight, nutrition, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, predictMl, recovery, renderCoachResponse, resolveTemporalContext, resolveWeeklyPlanRow, score } from "./routers";
 
 describe("RespiraFi intensity engine", () => {
   it("starts from safe idle telemetry", () => {
@@ -250,6 +250,33 @@ describe("RespiraFi weekly adaptive planner", () => {
     const restReply = renderCoachResponse("plan", context, decide(context), "What should I train Wednesday?");
     expect(restReply).toContain("Recovery / Rest");
     expect(restReply).not.toContain("Main circuit");
+  });
+  it("isolates an explicit weekday from a previous tomorrow request", () => {
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const day = (offset: number) => { const d = new Date(now); d.setDate(now.getDate() + offset); return d; };
+    const rows = [
+      { id: 1, targetDate: day(0), weekStartDate: day(0), status: "REST", title: "Recovery / Rest", muscleGroups: "Recovery", duration: 0, exercises: "[]" },
+      { id: 2, targetDate: day(1), weekStartDate: day(0), status: "PLANNED", title: "Lower Body", muscleGroups: "Quads · Glutes", duration: 30, exercises: JSON.stringify([{ name: "Goblet squat", sets: 3, reps: "10", rest: "60s" }]) },
+      { id: 3, targetDate: day(2), weekStartDate: day(0), status: "PLANNED", title: "Push", muscleGroups: "Chest · Shoulders", duration: 30, exercises: JSON.stringify([{ name: "Push-up", sets: 3, reps: "10", rest: "60s" }]) },
+      { id: 4, targetDate: day(3), weekStartDate: day(0), status: "PLANNED", title: "Pull", muscleGroups: "Back · Biceps", duration: 30, exercises: JSON.stringify([{ name: "Row", sets: 3, reps: "10", rest: "60s" }]) },
+    ];
+    const memory = [{ role: "user", content: "What should I train tomorrow?" }, { role: "assistant", content: "Tomorrow's recovery plan." }];
+    expect(resolveTemporalContext("For Wednesday?", memory).target).toBe("specific_day");
+    expect(resolveWeeklyPlanRow("For Wednesday?", memory, rows, now)?.title).toBe("Lower Body");
+    const context: any = { ...buildCoachContext({ profile: { goal: "General Fitness", timezone: "UTC" }, telemetry: {}, simulator: { workoutState: "REST" }, workouts: [], alerts: [], conversations: memory }), weeklyPlanContext: { currentWeek: rows } };
+    const reply = renderCoachResponse("plan", context, decide(context), "For Wednesday?");
+    expect(reply).toContain("WEDNESDAY’S SESSION");
+    expect(reply).toContain("Goblet squat");
+    expect(reply.toLowerCase()).not.toContain("for tomorrow");
+    expect(reply.toLowerCase()).not.toContain("tomorrow’s session");
+  });
+  it("uses the stored plan entry for today instead of a generic fallback", () => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const row = { id: 9, targetDate: today, weekStartDate: today, status: "PLANNED", title: "Today’s Upper Push", muscleGroups: "Chest · Shoulders", duration: 25, exercises: JSON.stringify([{ name: "Incline push-up", sets: 2, reps: "12", rest: "45s" }]) };
+    const context: any = { ...buildCoachContext({ profile: { goal: "General Fitness", timezone: "UTC" }, telemetry: {}, simulator: { workoutState: "REST" }, workouts: [], alerts: [] }), weeklyPlanContext: { currentWeek: [row] } };
+    const reply = renderCoachResponse("plan", context, decide(context), "What should I train today?");
+    expect(reply).toContain("TODAY’S SESSION");
+    expect(reply).toContain("Incline push-up");
   });
 });
 

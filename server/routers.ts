@@ -7,7 +7,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { buildCoachContext, classifyIntent, decide, extractConversationPreferences, generateWeeklyPlan, meaningfulInsight, nutrition, plan, predictMl, recovery, renderCoachResponse, resolveWeeklyPlanRow, score, weekStart } from "./coachServices";
+import { buildCoachContext, classifyIntent, decide, extractConversationPreferences, generateWeeklyPlan, meaningfulInsight, nutrition, plan, predictMl, recovery, renderCoachResponse, resolveTemporalContext, resolveWeeklyPlanRow, score, weekStart } from "./coachServices";
 
 const telemetryInput = z.object({ deviceId: z.string().min(1).max(80), bpm: z.number().min(30).max(240), speed: z.number().min(0).max(40), movement: z.number().min(0).max(10), duration: z.number().min(0).max(86400), exercise: z.string().max(100).optional() });
 const goals = ["Muscle Building", "Strength", "Fat Loss", "Endurance", "General Fitness", "Weight Maintenance"] as const;
@@ -113,4 +113,4 @@ export const appRouter = router({
 });
 
 export type AppRouter = typeof appRouter;
-export { score, predictMl, buildCoachContext, classifyIntent, extractConversationPreferences, decide, meaningfulInsight, renderCoachResponse, resolveWeeklyPlanRow, elapsedSeconds, idleTelemetry, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, recovery, nutrition, generateWeeklyPlan, weekStart };
+export { score, predictMl, buildCoachContext, classifyIntent, extractConversationPreferences, decide, meaningfulInsight, renderCoachResponse, resolveTemporalContext, resolveWeeklyPlanRow, elapsedSeconds, idleTelemetry, onboardingCompletionRequirements, onboardingStateFor, pauseGuard, plan, recovery, nutrition, generateWeeklyPlan, weekStart };
